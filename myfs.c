@@ -63,42 +63,46 @@ void Write(char *srcPath,char *destFileName,char* diskName)
 	struct File_List_Entry FileList_e;
 	struct Data_Entry Data_e;
 	
-	int ReadEntryNum = 0;
+
+	int ReadEntryNum = 0x0;
 	FILE *seekAndWritePtr;
+	FILE *dummyP;
 	FILE *srcReader;
 	srcReader = fopen(srcPath,"r");
-	seekAndWritePtr = fopen(diskName,"w");
+	seekAndWritePtr = fopen(diskName,"r+");
 	char* empty;
-
 	char buffer[512];
-
-	// FAT Search is done here
-	do
+	while ((fread(buffer,sizeof(buffer),1,srcReader)) == 1)
 	{
-		ReadEntryNum++;
-		fread(empty,sizeof(char),1,seekAndWritePtr);
-	}while(*empty == 0 || ReadEntryNum < 4096 );
-	fseek(seekAndWritePtr,-4,SEEK_CUR);
+		// FAT Search is done here
+		do
+		{
+			//printf("%x\n",ReadEntryNum );
+			printf("%d\n",*empty );
+			ReadEntryNum++;
+			fread(empty,sizeof(int),1,seekAndWritePtr);
+		}while(*empty != 0 || ReadEntryNum < 4096 );
+		fseek(seekAndWritePtr,-4,SEEK_CUR);
+		dummyP = seekAndWritePtr;
+		do
+		{
+			ReadEntryNum++;
+			fread(empty,sizeof(int),1,dummyP);
+		}while(*empty != 0 || ReadEntryNum < 4096 );
+		fseek(dummyP,-4,SEEK_CUR);
 
-	if(	fread(buffer,sizeof(buffer),1,seekAndWritePtr) != 0 )
-	{
-		FAT_e 
+		fwrite(ReadEntryNum,sizeof(int),1,seekAndWritePtr);
+
 	}
+	fwrite(0xFFFFFFFF,sizeof(int),1,dummyP);
 
 	fclose(srcReader);
 	fclose(seekAndWritePtr);
 }
 void Read(char *srcFileName,char *destPath)
 {
-	struct FAT_Entry FAT[4096];
-	struct File_List_Entry FileList[128];
-	struct Data_Entry Data[4096];
 
-/*	fptr = fopen(argv[1],"r+");
-	fread(FAT,sizeof(struct FAT_Entry),4096,fptr);
-	fread(FileList,sizeof(struct File_List_Entry),128,fptr);
-	fread(Data,sizeof(struct Data_Entry),4096,fptr);
-*/
+
 
 }
 void Delete(char *filename);
@@ -109,11 +113,25 @@ int main(int argc, char const *argv[])
 {
 
 
-	printf("%s\n",argv[2] );
 	if(strcmp(argv[2],"-format") == 0)
 	{
 		Format(argv[1]);
 	}
+/*	else if(strcmp(argv[2],"-write") == 0)
+	{
+		printf("%s\n",argv[2] );
+		Write(argv[3],argv[4],argv[1]);
+	}
+*/
+	struct FAT_Entry FAT[4096];
+	struct File_List_Entry FileList[128];
+	struct Data_Entry Data[4096];
+	FILE* fptr;
+	fptr = fopen(argv[1],"r+");
+	fread(FAT,sizeof(struct FAT_Entry),4096,fptr);
+	fread(FileList,sizeof(struct File_List_Entry),128,fptr);
+	fread(Data,sizeof(struct Data_Entry),4096,fptr);
+
 
 
 /*
@@ -123,7 +141,7 @@ int main(int argc, char const *argv[])
 	fwrite(Data,sizeof(struct Data_Entry),4096,fptr);
 */
 
-//	printf("%c\n",FileList[0].FileName[0] );
+	printf("%d\n",FAT[4096].entry );
 	
 
 	//fclose(fptr);
