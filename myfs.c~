@@ -29,7 +29,7 @@ void Format(const char* srcPath)
 {
 	int i ;
 	FILE *ptr;
-	ptr = fopen(srcPath,"r+");
+	ptr = fopen(srcPath,"w");
 
 	struct FAT_Entry FAT[1];
 	struct File_List_Entry FileList[1];
@@ -39,62 +39,66 @@ void Format(const char* srcPath)
 	strcpy(FileList[0].FileName, "");
 	FileList[0].firstBlock = 0;
 	FileList[0].size = 0;
-	strcpy(Data[0].Data, "");
+	strcpy(Data[0].Data, (""));
 
-
-	for (i = 0; i < 4096 ; i++)	
+	
+	for (i = 0; i < 4096; i++)
 		fwrite(FAT,sizeof(struct FAT_Entry),1,ptr);
-	for (i = 0; i < 128 ; i++)	
+	for (i = 0; i < 128; i++)
 		fwrite(FileList,sizeof(struct File_List_Entry),1,ptr);
-	for (i = 0; i < 4096 ; i++)	
+	for (i = 0; i < 4096; i++)
 		fwrite(Data,sizeof(struct Data_Entry),1,ptr);
 
 	fclose(ptr);
 }
 
-void Write(char *srcPath,char *destFileName,char* diskName)
+void Write(char *srcPath,char *destFileName,const char* diskName)
 {
 
 	struct FAT_Entry FAT_e[1];
-	struct File_List_Entry FileList_e[1];
+	struct File_List_Entry FileList_e;
 	struct Data_Entry Data_e[1];
 	
 
 	int ReadEntryNum = 0;
+	FILE *seekAndWritePtr;
+	FILE *dummyP;
+	FILE *srcReader;
+	FILE *dataWriter;
 
-	FILE* seekAndWritePtr;
-	FILE* dummyP;
-	FILE* srcReader;
-	FILE* dataWriter;
-	FILE* fileListptr;
+	FILE* fptr;
+	fptr = fopen(diskName,"r+");
 
-	srcReader = fopen(srcPath,"r+");
+	srcReader = fopen(srcPath,"r");
 	seekAndWritePtr = fopen(diskName,"r+");
 	dummyP = fopen(diskName,"r+");
-	dataWriter = fopen(diskName,"r+");
-	fileListptr = fopen(diskName,"r+");
-
+	dataWriter = fopen(diskName,"w");
 	int writeBlockNum = 0;
 
-	
+	printf("%s\n",diskName );
+	printf("ney" );
 
 	int empty;
 	char buffer[512];
-	
 	while ((fread(buffer,sizeof(buffer),1,srcReader)) == 1)
 	{
 		// FAT Search is done here
+		printf("HEY\n" );
 
 		do
 		{
+
 			fread(FAT_e,sizeof(struct FAT_Entry),1,seekAndWritePtr);
+			//printf("%d\n",FAT_e[0].entry );
+			
 		}while(FAT_e[0].entry != 0 );
 
+		ReadEntryNum = ftell(seekAndWritePtr);
 
 		//printf("writeBlockNum: %d\n",writeBlockNum );
 
 	//	printf("seekAndWritePtr:%x\n",ReadEntryNum );
-
+		
 		fseek(dummyP,ftell(seekAndWritePtr),SEEK_SET);
 		fseek(seekAndWritePtr,-(sizeof(FAT_e)),SEEK_CUR);
 		do
@@ -102,52 +106,24 @@ void Write(char *srcPath,char *destFileName,char* diskName)
 			fread(FAT_e,sizeof(struct FAT_Entry),1,dummyP);
 		}while( FAT_e[0].entry != 0 );
 		//fseek(dummyP,-4,SEEK_CUR);
-		ReadEntryNum = ftell(dummyP)/sizeof(struct FAT_Entry)-1;
 
 		FAT_e[0].entry = ReadEntryNum;
-		FAT_e[0].entry  = htonl(FAT_e[0].entry );
-		
-		if(writeBlockNum == 0)
-		{		
-		
-			    fseek(fileListptr,4096*sizeof(struct FAT_Entry),SEEK_SET);
-			    printf("%d\n",ftell(fileListptr) );
-				do
-				{
-					fread(FileList_e,sizeof(FileList_e),1,fileListptr);
-					//printf("%d\n",ftell(fileListptr) );
-				}while((FileList_e[0].size != 0));
-
-				printf("%d\n",ftell(fileListptr) );
-			    fseek(fileListptr,-sizeof(FileList_e),SEEK_CUR);
-			    strcpy(FileList_e[0].FileName,destFileName); 
-
-			    printf("%s\n",FileList_e[0].FileName);
-
-			    FileList_e[0].firstBlock = ReadEntryNum;
-		}
-		ReadEntryNum = ftell(seekAndWritePtr)/sizeof(struct FAT_Entry)-1;
-		fwrite(FAT_e,sizeof(FAT_e),1,seekAndWritePtr);
-		fseek(dataWriter, (ReadEntryNum)*sizeof(struct Data_Entry)+sizeof(struct FAT_Entry)*4096+sizeof(struct File_List_Entry)*128, SEEK_SET);
+		//FAT_e[0].entry  = htonl(FAT_e[0].entry );
+		//fwrite(FAT_e,sizeof(FAT_e),1,seekAndWritePtr);
+		fseek(dataWriter, (writeBlockNum)*sizeof(struct Data_Entry)+ sizeof(struct FAT_Entry)*4096 + sizeof(struct File_List_Entry)*128, SEEK_SET);
 	
-
-		//printf("seekAndWritePtr:%ld dummyP:%ld\n",ftell(seekAndWritePtr),ftell(dummyP) );
+		printf("seekAndWritePtr:%d dummyP:%d\n",ftell(seekAndWritePtr),ftell(dummyP) );
 		strcmp(Data_e[0].Data,buffer);
 		fwrite(Data_e,sizeof(Data_e),1,dataWriter);
 		//seekAndWritePtr = dummyP;
 		writeBlockNum++;		
-	}
-	FileList_e[0].size = writeBlockNum;
-	fwrite(FileList_e,sizeof(FileList_e),1,fileListptr);
 
+	}
 	FAT_e[0].entry = 0xFFFFFFFF;
-	fwrite(FAT_e,sizeof(FAT_e),1,seekAndWritePtr);
-	
-	fclose(fileListptr);
-	fclose(dataWriter);
+	//fwrite(FAT_e,sizeof(FAT_e),1,dummyP);
+
 	fclose(srcReader);
 	fclose(seekAndWritePtr);
-	fclose(dummyP);
 }
 void Read(char *srcFileName,char *destPath,char *diskName)
 {
@@ -158,25 +134,13 @@ void Read(char *srcFileName,char *destPath,char *diskName)
 	fptr = fopen(diskName,"r+");
 
 	int i;
-	int PrintList = 10;
+	int PrintList = 100;
 	for (i = 0; i < PrintList; ++i)
 	{
 		fread(FAT,sizeof(struct FAT_Entry),1,fptr);
-		printf("Fat Entry %d : %.8x \n",i ,FAT[0].entry );
-
+		printf("Fat Entry %d : %d \n",i ,FAT[0].entry );
 	}
-	fseek(fptr,((4096)*(sizeof(struct FAT_Entry))) ,SEEK_SET);
-	
-	printf("%d\n",ftell(fptr) );
-	for (i = 0; i < PrintList; ++i)
-	{
-		fread(FileList,sizeof(struct File_List_Entry),1,fptr);
-		printf("File_List_Entry %d : %s \n",i ,FileList[0].FileName );
-		printf("File_List_Entry %d : %d \n",i ,FileList[0].firstBlock );
-		printf("File_List_Entry %d : %d \n",i ,FileList[0].size );
-
-	}
-	fseek(fptr,(128*sizeof(struct File_List_Entry)+(4096)*(sizeof(struct FAT_Entry))) ,SEEK_SET);
+	fseek(fptr,(128*sizeof(struct File_List_Entry)+(4096-PrintList)*(sizeof(struct FAT_Entry))) ,SEEK_CUR);
 		
 		//fread(FileList,sizeof(struct File_List_Entry),1,fptr);
 	for (i = 0; i < PrintList; ++i)	
@@ -184,9 +148,15 @@ void Read(char *srcFileName,char *destPath,char *diskName)
 		fread(Data,sizeof(struct Data_Entry),1,fptr);
 		printf("Data Entry %d : %s \n",i ,Data[0].Data);
 	}
-	fclose(fptr);
 }
 
+
+/*
+	FileList[0].FileName[0] = 'h';
+	fwrite(FAT,sizeof(struct FAT_Entry),4096,fptr);
+	fwrite(FileList,sizeof(struct File_List_Entry),128,fptr);
+	fwrite(Data,sizeof(struct Data_Entry),4096,fptr);
+*/
 
 
 
