@@ -257,32 +257,45 @@ void Rename(char* diskName,char* filename,char* newname)
 
 void Delete(char* diskName,char *filename)
 {
+
+	// Deletes given file from disk image 
+	// All the table entries also are deleted
+
+	// Necessary data structures
 	struct FAT_Entry FAT[4096];
 	struct File_List_Entry FileList[128];
 	struct Data_Entry Data[4096];
 
-
+	// File pointers
 	FILE* fileListptr;
 	FILE* fatReader;
 	FILE* dataReader;
 	FILE* fileDeleter;
 
+
+	// Open file for read and update purposes 
 	fileListptr = fopen(diskName,"r+");
 	fatReader = fopen(diskName,"r+");
 	dataReader = fopen(diskName,"r+");
 	fileDeleter = fopen(diskName,"r+");
 
+	// Adjust the location of pointer for correct reading
 	int i = 0;
 	fseek(fileListptr,sizeof(FAT),SEEK_CUR);
 	fread(FileList,sizeof(FileList),1,fileListptr);
 
+	// Find the given file from the file list 
 	for (i = 0; i < 128; ++i)
 	{
 		if(!strcmp(FileList[i].FileName,filename))
 			break;
 	}
+	// If file does not exist,return
 	if(i == 128)
 		return;
+
+	// 
+
 	int blockidx = FileList[i].firstBlock;
 	FileList[i].firstBlock = 0;
 	FileList[i].size = 0;
@@ -323,6 +336,7 @@ void Delete(char* diskName,char *filename)
 }
 void List(char *diskName)
 {
+	// Lists all the files with nonzero sizes
 	FILE* fileListptr;
 	fileListptr = fopen(diskName,"r+");
 	int i;
@@ -343,7 +357,7 @@ void List(char *diskName)
 int main(int argc, char const *argv[])
 {
 
-
+// Function selection is done here
 	if(strcmp(argv[2],"-format") == 0)
 	{
 		Format(argv[1]);
