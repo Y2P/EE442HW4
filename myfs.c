@@ -27,6 +27,7 @@ struct Data_Entry Data[4096];
 FILE *fptr;
 void Format(const char* srcPath)
 {
+	// Formats the given disk image
 	int i ;
 	FILE *ptr;
 	ptr = fopen(srcPath,"r+");
@@ -35,15 +36,15 @@ void Format(const char* srcPath)
 	struct File_List_Entry FileList[1];
 	struct Data_Entry Data[1];
 
+	// Zerorize all the data
 	FAT[0].entry = 0;
-//	FileList[0].FileName[0] = '\0';
 	memset(&FileList[0].FileName[0], 0, sizeof(FileList[0].FileName));
 
 	FileList[0].firstBlock = 0;
 	FileList[0].size = 0;
-//	Data[0].Data[0] = '\0';
 	memset(&Data[0].Data[0], 0, sizeof(Data[0].Data));
 
+	// Write the changes 	
 	for (i = 0; i < 4096 ; i++)	
 		fwrite(FAT,sizeof(FAT),1,ptr);
 	for (i = 0; i < 128 ; i++)	
@@ -56,20 +57,23 @@ void Format(const char* srcPath)
 
 void Write(char *srcPath,char *destFileName,char* diskName)
 {
+	// Writes a file to disk image from the current directory
 
+	// Necessary data structures
 	struct FAT_Entry FAT_e[1];
 	struct File_List_Entry FileList_e[1];
 	struct Data_Entry Data_e[1];
 	
-
 	int ReadEntryNum = 0;
 
+	// File pointers
 	FILE* seekAndWritePtr;
 	FILE* dummyP;
 	FILE* srcReader;
 	FILE* dataWriter;
 	FILE* fileListptr;
 
+	// Open the disk image and file for read and update purposes
 	srcReader = fopen(srcPath,"r+");
 	seekAndWritePtr = fopen(diskName,"r+");
 	dummyP = fopen(diskName,"r+");
@@ -78,7 +82,7 @@ void Write(char *srcPath,char *destFileName,char* diskName)
 
 	int writeBlockNum = 0;
 
-	
+	// Finds the empty blocks from FAT and writes to Data 
 	int byteCounter; 
 	int empty;
 	char buffer[512];
@@ -95,15 +99,18 @@ void Write(char *srcPath,char *destFileName,char* diskName)
 			fread(FAT_e,sizeof(struct FAT_Entry),1,seekAndWritePtr);
 		}while(FAT_e[0].entry != 0 );
 
-		fseek(dummyP,ftell(seekAndWritePtr),SEEK_SET);
-		ReadEntryNum = ftell(seekAndWritePtr)/sizeof(struct FAT_Entry);
 
+		fseek(dummyP,ftell(seekAndWritePtr),SEEK_SET);
+		// Get next empty block number
+		ReadEntryNum = ftell(seekAndWritePtr)/sizeof(struct FAT_Entry);
+		// Adjust pointer for current empty place 
 		fseek(seekAndWritePtr,-(sizeof(FAT_e)),SEEK_CUR);
 		do
 		{
 			fread(FAT_e,sizeof(struct FAT_Entry),1,dummyP);
 		}while( FAT_e[0].entry != 0 );
 
+		// 
 		FAT_e[0].entry = ReadEntryNum;
 		FAT_e[0].entry  = htonl(FAT_e[0].entry );
 		
@@ -150,21 +157,27 @@ void Write(char *srcPath,char *destFileName,char* diskName)
 }
 void Read(char *srcFileName,char *destPath,char *diskName)
 {
+
+	// Reads from disk image to the current directory
+
+	// Necessary data structures
 	struct FAT_Entry FAT[4096];
 	struct File_List_Entry FileList[128];
 	struct Data_Entry Data[4096];
 	struct Data_Entry WrittenData[4096];
 
-
+	// File pointers 
 	FILE* fileListptr;
 	FILE* fatReader;
 	FILE* dataReader;
 	FILE* fileWriter;
 
+	// Opens the diskimage with the pointers
 	fileListptr = fopen(diskName,"r+");
 	fatReader = fopen(diskName,"r+");
 	dataReader = fopen(diskName,"r+");
 
+	// Finds the file 
 	int i = 0;
 	fseek(fileListptr,sizeof(FAT),SEEK_CUR);
 	fread(FileList,sizeof(FileList),1,fileListptr);
@@ -174,18 +187,25 @@ void Read(char *srcFileName,char *destPath,char *diskName)
 		if(!strcmp(FileList[i].FileName,srcFileName))
 			break;
 	}
+	// If it does not exist, return
 	if(i == 128)
 		return;
 
+	// If exist, create a new file with a given name
 	fileWriter = fopen(destPath,"w+");
 
+	// Find the first block in file system
 	int blockidx = FileList[i].firstBlock;
 	blockidx = htonl(blockidx);
+
+	// Read File allocation table for other blocks
 	fread(FAT,sizeof(FAT),4096,fatReader);
 	
+	// Adjust the data reader pointer and read the data
 	fseek(dataReader,sizeof(FAT)+sizeof(FileList),SEEK_SET);
 	fread(Data,sizeof(Data),1,dataReader);
 
+	// Find the blocks and collect them a data structure
 	int count = 0;
 	do
 	{
@@ -197,7 +217,7 @@ void Read(char *srcFileName,char *destPath,char *diskName)
 		count++;
 	}	while(blockidx!= 0xFFFFFFFF);
 
-	
+	// Writes the collected blocks
 	int byteCounter;
 	char buffer[512];
 	i = 0;
@@ -220,7 +240,7 @@ void Read(char *srcFileName,char *destPath,char *diskName)
 		fwrite(buffer,byteCounter*sizeof(char),1,fileWriter);
 		i++;
 	}
-
+	// closes the file 
 	fclose(fileWriter);
 	fclose(fileListptr);
 	fclose(fatReader);
@@ -229,6 +249,7 @@ void Read(char *srcFileName,char *destPath,char *diskName)
 
 void Rename(char* diskName,char* filename,char* newname)
 {
+	// This function finds and renames the given file with new name
 	struct FAT_Entry FAT[4096];
 	struct File_List_Entry FileList[128];
 
@@ -240,6 +261,7 @@ void Rename(char* diskName,char* filename,char* newname)
 	fseek(fileListptr,sizeof(FAT),SEEK_CUR);
 	fread(FileList,sizeof(FileList),1,fileListptr);
 
+	// Find file
 	for (i = 0; i < 128; ++i)
 	{
 		if(!strcmp(FileList[i].FileName,filename))
@@ -247,6 +269,7 @@ void Rename(char* diskName,char* filename,char* newname)
 	}
 	if(i == 128)
 		return;
+	// Rename it
 	strcpy(FileList[i].FileName,newname);
 	fseek(fileListptr,sizeof(FAT),SEEK_SET);
 
@@ -296,20 +319,26 @@ void Delete(char* diskName,char *filename)
 
 	// 
 
+	// Take first block address
 	int blockidx = FileList[i].firstBlock;
+
+	// Delete the file list entry
 	FileList[i].firstBlock = 0;
 	FileList[i].size = 0;
 	memset(&FileList[i].FileName[0],0,sizeof(FileList[i].FileName));
 
 
-
+	// Little --> Big Endian
 	blockidx = htonl(blockidx);
 	
+	// Read File Allocation Table
 	fread(FAT,sizeof(FAT),1,fatReader);
 	
+	// Adjust the data reader pointer for correct position
 	fseek(dataReader,sizeof(FAT)+sizeof(FileList),SEEK_SET);
 	fread(Data,sizeof(Data),1,dataReader);
 
+	// Follow the next blocks and delete them
 	int deleteidx = 0;
 	do
 	{
@@ -323,9 +352,9 @@ void Delete(char* diskName,char *filename)
 		FAT[deleteidx].entry = 0;
 
 
-	}	while(blockidx!= 0xFFFFFFFF);
+	}	while(blockidx!= 0xFFFFFFFF); // Until final block
 
-
+	// Write the changes to the disk.image and close the files
 	fwrite(FAT,sizeof(FAT),1,fileDeleter);
 	fwrite(FileList,sizeof(FileList),1,fileDeleter);
 	fwrite(Data,sizeof(Data),1,fileDeleter);
