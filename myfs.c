@@ -110,12 +110,14 @@ void Write(char *srcPath,char *destFileName,char* diskName)
 			fread(FAT_e,sizeof(struct FAT_Entry),1,dummyP);
 		}while( FAT_e[0].entry != 0 );
 
-		// 
+		// Write next empty block to FAT
 		FAT_e[0].entry = ReadEntryNum;
+		// Big -> Little Endian
 		FAT_e[0].entry  = htonl(FAT_e[0].entry );
 		
 		ReadEntryNum = ftell(seekAndWritePtr)/sizeof(struct FAT_Entry);
 		
+		// For first block, fill the file list
 		if(writeBlockNum == 0)
 		{		
 		
@@ -132,23 +134,27 @@ void Write(char *srcPath,char *destFileName,char* diskName)
 			    FileList_e[0].firstBlock = ReadEntryNum;
 		}
 
+		// Write the updated FAT
 		fwrite(FAT_e,sizeof(FAT_e),1,seekAndWritePtr);
 		fseek(seekAndWritePtr,-sizeof(FAT_e),SEEK_CUR);
 		fseek(dataWriter, (ReadEntryNum)*sizeof(struct Data_Entry)+sizeof(struct FAT_Entry)*4096+sizeof(struct File_List_Entry)*128, SEEK_SET);
 	
 
 		memset(&Data_e[0].Data[0], 0, sizeof(Data_e[0].Data));
-		
+		// Write the updated data
 		fwrite(buffer,byteCounter*sizeof(char),1,dataWriter);
 		writeBlockNum++;		
-	}	while (empty == 1);
+	}	while (empty == 1); // Until all data is read from given file
 
 	FileList_e[0].size = writeBlockNum;
+	// Update filelist
 	fwrite(FileList_e,sizeof(FileList_e),1,fileListptr);
 
+	// Finalize the FAT
 	FAT_e[0].entry = 0xFFFFFFFF;
 	fwrite(FAT_e,sizeof(FAT_e),1,seekAndWritePtr);
 	
+	// Close all the file pointers
 	fclose(fileListptr);
 	fclose(dataWriter);
 	fclose(srcReader);
