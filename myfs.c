@@ -377,12 +377,12 @@ void List(char *diskName)
 	int i;
 	struct File_List_Entry FileList[1];
 	fseek(fileListptr,((4096)*(sizeof(struct FAT_Entry))) ,SEEK_SET);
-	printf("file name\tfile size\tfirstblock \n");	
+	printf("file name\tfile size \n");	
 	for ( i = 0 ; i < 128 ; i++)
 	{
 		fread(FileList,sizeof(FileList),1,fileListptr);
 		if(FileList[0].size)
-			printf("%-10s\t%-10d\t%-10x\n",FileList[0].FileName,FileList[0].size,FileList[0].firstBlock);
+			printf("%-10s\t%-10d\t\n",FileList[0].FileName,FileList[0].size,FileList[0].firstBlock);
 	}
 
 	fclose(fileListptr);
@@ -399,23 +399,23 @@ int main(int argc, char const *argv[])
 	}
 	else if(strcmp(argv[2],"-write") == 0)
 	{
-		printf("%s\n",argv[2] );
+	//	printf("%s\n",argv[2] );
 		Write(argv[3],argv[4],argv[1]);
 	}
 	else if(strcmp(argv[2],"-read") == 0)
 	{
 		
-		printf("%s\n",argv[2] );
+	//	printf("%s\n",argv[2] );
 		Read(argv[3],argv[4],argv[1]);
 	}
 	else if(strcmp(argv[2],"-list") == 0)
 	{
-		printf("%s\n",argv[2] );
+	//	printf("%s\n",argv[2] );
 		List(argv[1]);
 	}
 	else if(strcmp(argv[2],"-delete") == 0)
 	{
-		printf("%s\n",argv[2] );
+	//	printf("%s\n",argv[2] );
 		Delete(argv[1],argv[3]);
 	}
 	else if(strcmp(argv[2],"-rename") == 0)
